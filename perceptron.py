@@ -1,84 +1,73 @@
-import numpy as np
+import numpy as np 
 
+class Perceptron(object):
 
-def unit_step_func(x):
-    return np.where(x > 0 , 1, 0)
+	"""Perceptron classifier.
 
-class Perceptron:
+	Parameters
+	------------
+	eta : float
+		Learning rate (between 0.0 and 1.0)
+	n_iter : int
+		Passes over the training dataset.
 
-    def __init__(self, learning_rate=0.01, n_iters=1000):
-        self.lr = learning_rate
-        self.n_iters = n_iters
-        self.activation_func = unit_step_func
-        self.weights = None
-        self.bias = None
+	Attributes
+	------------
+	w _: 1d-array
+		Weights after fitting.
+	errors_ : list
+		Number of misclassifications in every epoch.
 
+	"""
 
-    def fit(self, X, y):
-        n_samples, n_features = X.shape
+	def __init__(self, eta = 0.01, n_iter = 10):
+		self.eta = eta
+		self.n_iter = n_iter
 
-        # init parameters
-        self.weights = np.zeros(n_features)
-        self.bias = 0
+	def fit(self, X, y):
 
-        y_ = np.where(y > 0 , 1, 0)
+		"""Fit training data.
 
-        # learn weights
-        for _ in range(self.n_iters):
-            for idx, x_i in enumerate(X):
-                linear_output = np.dot(x_i, self.weights) + self.bias
-                y_predicted = self.activation_func(linear_output)
+		Parameters
+		-----------
+		X : {array-like}, shape = [n_samples, n_features]
+			Training vectors, where n_samples is the number
+			of samples and n_features is the number of 
+			features.
 
-                # Perceptron update rule
-                update = self.lr * (y_[idx] - y_predicted)
-                self.weights += update * x_i
-                self.bias += update
+		y : array-like, shape = [n_samples]
+			Target values.
 
+		Return
+		-------
+		self : object
 
-    def predict(self, X):
-        linear_output = np.dot(X, self.weights) + self.bias
-        y_predicted = self.activation_func(linear_output)
-        return y_predicted
+		"""
 
+		self.w_ = np.zeros(1 + X.shape[1])
+		self.errors_ = []
 
-# Testing
-if __name__ == "__main__":
-    # Imports
-    import matplotlib.pyplot as plt
-    from sklearn.model_selection import train_test_split
-    from sklearn import datasets
+		for iter in range(self.n_iter):
+			errors = 0
 
-    def accuracy(y_true, y_pred):
-        accuracy = np.sum(y_true == y_pred) / len(y_true)
-        return accuracy
+			for xi, target in zip(X, y):
+				update = self.eta * (target - self.predict(xi))
+				self.w_[1 : ] += update * xi
+				self.w_[0] += update
+				errors += int(update != 0.0)
 
-    X, y = datasets.make_blobs(
-        n_samples=150, n_features=2, centers=2, cluster_std=1.05, random_state=2
-    )
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=123
-    )
+			self.errors_.append(errors)
 
-    p = Perceptron(learning_rate=0.01, n_iters=1000)
-    p.fit(X_train, y_train)
-    predictions = p.predict(X_test)
+		return self
 
-    print("Perceptron classification accuracy", accuracy(y_test, predictions))
+	def net_input(self, X):
 
-    fig = plt.figure()
-    ax = fig.add_subplot(1, 1, 1)
-    plt.scatter(X_train[:, 0], X_train[:, 1], marker="o", c=y_train)
+		"""Calculate net input"""
 
-    x0_1 = np.amin(X_train[:, 0])
-    x0_2 = np.amax(X_train[:, 0])
+		return np.dot(X, self.w_[1 : ]) + self.w_[0]
 
-    x1_1 = (-p.weights[0] * x0_1 - p.bias) / p.weights[1]
-    x1_2 = (-p.weights[0] * x0_2 - p.bias) / p.weights[1]
+	def predict(self, X):
 
-    ax.plot([x0_1, x0_2], [x1_1, x1_2], "k")
+		"""Return class label after unit step"""
 
-    ymin = np.amin(X_train[:, 1])
-    ymax = np.amax(X_train[:, 1])
-    ax.set_ylim([ymin - 3, ymax + 3])
-
-    plt.show()
+		return np.where(self.net_input(X) >= 0.0, 1, -1)
